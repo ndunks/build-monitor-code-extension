@@ -4,54 +4,72 @@ import { SIGILL, SIGINT, SIGKILL } from 'constants';
 import { existsSync, readFileSync } from 'fs';
 import { kill } from 'process';
 import * as vscode from 'vscode';
-
-const commandId = 'esp-idf-build-command';
+const ID = 'build-monitor';
+const commandId = `${ID}.build`;
 
 function sleep(ms = 300) {
 	return new Promise(r => setTimeout(r, ms))
 }
-export function activate(context: vscode.ExtensionContext) {
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	// const workspaceRoot = (vscode.workspace.workspaceFolders && (vscode.workspace.workspaceFolders.length > 0))
-	// 	? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
-	// if (!workspaceRoot) {
-	// 	return;
-	// }
+function findTheLastChild(pid: number) {
+	const fpath = `/proc/${pid}/task/${pid}/children`;
+	if (existsSync(fpath)) {
+		const childs = readFileSync(fpath, 'ascii').trim();
+		//console.log('PID', pid, 'childs:', childs)
+		const childPid = parseInt(childs);
+		if (isNaN(childPid)) {
+			return 0;
+		} else {
+			return findTheLastChild(childPid) || childPid
+		}
+	} else {
+		return 0
+	}
+}
+
+export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
 	// The commandId parameter must match the command field in package.json
 	context.subscriptions.push(vscode.commands.registerCommand(commandId, async function () {
-
 		let myTerminal: vscode.Terminal = vscode.window.terminals.find(v => v.name == commandId);
+		const config = vscode.workspace.getConfiguration(ID);
 		if (!myTerminal) {
 			myTerminal = vscode.window.createTerminal(commandId);
 			myTerminal.show();
 			await sleep();
 		} else {
-			myTerminal.processId.then(async pid => {
+			await myTerminal.processId.then(async pid => {
 				//get child PID
-				const fpath = `/proc/${pid}/task/${pid}/children`;
-				if (existsSync(fpath)) {
-					const childPid = parseInt(readFileSync(fpath, 'ascii').trim());
-					if (!isNaN(childPid)) {
-						kill(childPid, SIGKILL)
-						await sleep(500);
-					}
+				let childPid = findTheLastChild(pid);
+				if (childPid > 0) {
+					kill(childPid, config.kill_signal || "SIGTERM")
+					let currentChildPid = findTheLastChild(pid);
+					let counter = 0;
+					do {
+						if (counter++ >= (4 * 2)) {
+							console.warn('Timeout waiting child process to exit.');
+							kill(childPid, "SIGTERM")
+							await sleep(250);
+							break;
+						}
+						await sleep(250);
+						currentChildPid = findTheLastChild(pid);
+					} while (currentChildPid)
+
 				} else {
 					console.warn('No Child PID')
 				}
 			})
 		}
-		myTerminal.sendText("make simple_monitor")
+		myTerminal.sendText(`${config.command} ${config.command_args.join(' ')}`)
 	}));
 
 	// create a new status bar item that we can now manage
 	const myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100)
 	context.subscriptions.push(myStatusBarItem);
 	myStatusBarItem.command = commandId;
-	myStatusBarItem.text = 'BUILD';
+	myStatusBarItem.text = 'Build & Monitor';
 	myStatusBarItem.show();
 }
 

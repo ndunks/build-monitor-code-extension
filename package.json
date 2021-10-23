@@ -1,7 +1,7 @@
 {
-	"name": "esp-idf-build-command",
-	"displayName": "ESP-IDF Build Command",
-	"description": "Build flash and monitor from ESP-IDF Makefile style",
+	"name": "build-monitor",
+	"displayName": "Build Monitor",
+	"description": "Run build command and monitor, usefull for esp8266 RTOS SDK Development",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.x.x"
@@ -16,29 +16,78 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "esp-idf-build-command.helloWorld",
-				"title": "Hello World"
+				"command": "build-monitor.build",
+				"title": "Build & Monitor"
 			}
-		]
-	},
-	"taskDefinitions": [
-		{
-			"type": "make",
-			"required": [
-				"target"
-			],
+		],
+		"configuration": {
+			"title": "Build & Monitor",
 			"properties": {
-				"target": {
-					"type": "string",
-					"description": "Makefile target, default is 'app monitor'"
+				"build-monitor.command": {
+					"default": "make",
+					"title": "Command",
+					"type": "string"
 				},
-				"args": {
+				"build-monitor.command_args": {
+					"description": "Command arguments",
 					"type": "array",
-					"description": "Add arguments"
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"CONFIG_SDK_PYTHON=python3",
+						"-j3",
+						"app-flash",
+						"simple_monitor"
+					]
+				},
+				"build-monitor.kill_signal": {
+					"description": "Signal to stop monitor that send to child process",
+					"type": "string",
+					"enum": [
+						"SIGABRT",
+						"SIGALRM",
+						"SIGBUS",
+						"SIGCHLD",
+						"SIGCONT",
+						"SIGFPE",
+						"SIGHUP",
+						"SIGILL",
+						"SIGINT",
+						"SIGIO",
+						"SIGIOT",
+						"SIGKILL",
+						"SIGPIPE",
+						"SIGPOLL",
+						"SIGPROF",
+						"SIGPWR",
+						"SIGQUIT",
+						"SIGSEGV",
+						"SIGSTKFLT",
+						"SIGSTOP",
+						"SIGSYS",
+						"SIGTERM",
+						"SIGTRAP",
+						"SIGTSTP",
+						"SIGTTIN",
+						"SIGTTOU",
+						"SIGUNUSED",
+						"SIGURG",
+						"SIGUSR1",
+						"SIGUSR2",
+						"SIGVTALRM",
+						"SIGWINCH",
+						"SIGXCPU",
+						"SIGXFSZ",
+						"SIGBREAK",
+						"SIGLOST",
+						"SIGINFO"
+					],
+					"default": "SIGINT"
 				}
 			}
 		}
-	],
+	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -b",
