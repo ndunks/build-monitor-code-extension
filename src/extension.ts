@@ -1,11 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import { SIGILL, SIGINT, SIGKILL } from 'constants';
 import { existsSync, readFileSync } from 'fs';
 import { kill } from 'process';
 import * as vscode from 'vscode';
+import { BuildMonitorTaskProvider } from './task-provider';
 const ID = 'build-monitor';
 const commandId = `${ID}.build`;
+let taskProvider: vscode.Disposable
 
 function sleep(ms = 300) {
 	return new Promise(r => setTimeout(r, ms))
@@ -28,6 +29,7 @@ function findTheLastChild(pid: number) {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	console.log(ID, 'Activated')
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
 	// The commandId parameter must match the command field in package.json
@@ -47,13 +49,13 @@ export function activate(context: vscode.ExtensionContext) {
 					let currentChildPid = findTheLastChild(pid);
 					let counter = 0;
 					do {
-						if (counter++ >= (4 * 2)) {
+						if (counter++ >= 4) {
 							console.warn('Timeout waiting child process to exit.');
 							kill(childPid, "SIGTERM")
-							await sleep(250);
+							await sleep(200);
 							break;
 						}
-						await sleep(250);
+						await sleep(200);
 						currentChildPid = findTheLastChild(pid);
 					} while (currentChildPid)
 
@@ -71,9 +73,22 @@ export function activate(context: vscode.ExtensionContext) {
 	myStatusBarItem.command = commandId;
 	myStatusBarItem.text = 'Build & Monitor';
 	myStatusBarItem.show();
+
+	// const workspaceRoot = (vscode.workspace.workspaceFolders && (vscode.workspace.workspaceFolders.length > 0))
+	// 	? vscode.workspace.workspaceFolders[0].uri.fsPath : undefined;
+	// if (!workspaceRoot) {
+	// 	console.log('No workspace for tasks')
+	// 	return;
+	// }
+	// console.log('Creatng Task')
+
+	// taskProvider = vscode.tasks.registerTaskProvider(BuildMonitorTaskProvider.type, new BuildMonitorTaskProvider());
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-
+	console.log(ID, 'Deactivated')
+	if (taskProvider) {
+		taskProvider.dispose()
+	}
 }

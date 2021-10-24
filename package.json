@@ -10,10 +10,18 @@
 		"Other"
 	],
 	"activationEvents": [
-		"*"
+		"onCommand:workbench.action.tasks.runTask",
+		"onCommand:build-monitor.build",
+		"workspaceContains:makefile",
+		"workspaceContains:Makefile"
 	],
 	"main": "./out/extension",
 	"contributes": {
+		"taskDefinitions": [
+			{
+				"type": "build-monitor"
+			}
+		],
 		"commands": [
 			{
 				"command": "build-monitor.build",
